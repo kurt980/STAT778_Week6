@@ -450,6 +450,8 @@ for (r in seq_len(R)) {
 cover
 ```
 
+We observe that the CIs from those methods cover the true values
+
 
 ## Activity 9
 
@@ -460,7 +462,7 @@ bca_ci_jacknife_after_bootstrap <- function(x0, B = 1000, alpha = 0.05) {
 
   # store bootstrap thetas
   theta_star <- numeric(B)
-  counts <- matrix(0L, nrow = B, ncol = n)
+  counts <- matrix(0L, nrow = B, ncol = n) # this is for later to find whether i is left out
 
   for (b in seq_len(B)) {
     idx <- sample.int(n, size = n, replace = TRUE)
@@ -475,7 +477,7 @@ bca_ci_jacknife_after_bootstrap <- function(x0, B = 1000, alpha = 0.05) {
   # jackknife-after-bootstrap leave-one-out
   theta_loo_jab <- numeric(n)
   for (i in seq_len(n)) {
-    keep <- counts[, i] == 0L          # replicates where obs i is not included
+    keep <- counts[, i] == 0L          # this is to find the replicates where obs i is not included
     theta_loo_jab[i] <- mean(theta_star[keep])
   }
   theta_bar <- mean(theta_loo_jab)
@@ -494,7 +496,7 @@ bca_ci_jacknife_after_bootstrap <- function(x0, B = 1000, alpha = 0.05) {
   a1 <- adj(z_low)
   a2 <- adj(z_high)
 
-  # bca ci from bootstrap quantiles -----
+  # bca ci from bootstrap quantiles
   ci <- unname(quantile(theta_star, probs = c(a1, a2), type = 7))
 
   list(ci = ci, z0 = z0, a = a, theta_obs = theta_obs)
@@ -503,8 +505,8 @@ bca_ci_jacknife_after_bootstrap <- function(x0, B = 1000, alpha = 0.05) {
 
 ```{r}
 set.seed(123)
-out <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)
-out$ci
+ci_jack <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)
+ci_jack$ci
 ```
 
 ```{r}
@@ -518,8 +520,8 @@ for (r in seq_len(R)) {
   samp <- generate_X_sample(n = 50, p = 5)
   x0 <- samp$X
 
-  bca <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)$ci
-  cover_bca[r] <- (bca[1] <= theta_true && theta_true <= bca[2])
+  ci_jack <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)$ci
+  cover_bca[r] <- (ci_jack[1] <= theta_true && theta_true <= bca[2])
 }
 
 mean(cover_bca)
