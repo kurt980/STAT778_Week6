@@ -440,7 +440,7 @@ cover <- matrix(FALSE, nrow = R, ncol = 4)
 colnames(cover) <- c("nonparametric_percentile", "nonparametric_student", "parametric_percentile", "parametric_student")
 
 for (r in seq_len(R)) {
-  CIs_1000 <- compute_all_CIs(n, p, B, B2, alpha)
+  CIs_1000 <- compute_all_CIs(n, p, B, B2=100, alpha)
   cover[r, "nonparametric_percentile"]  <- contains(CIs_1000$ci_np_percentile, theta_true)
   cover[r, "nonparametric_student"]    <- contains(CIs_1000$ci_np_student, theta_true)
   cover[r, "parametric_percentile"] <- contains(CIs_1000$ci_par_percentile, theta_true)
@@ -450,7 +450,7 @@ for (r in seq_len(R)) {
 cover
 ```
 
-We observe that the CIs from those methods cover the true values
+We observe that the CIs from those methods cover the true values, and they took very long to run
 
 
 ## Activity 9
@@ -508,6 +508,8 @@ set.seed(123)
 ci_jack <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)
 ci_jack$ci
 ```
+The true value is still in this Jacknife CI.
+
 
 ```{r}
 set.seed(123)
@@ -521,10 +523,10 @@ for (r in seq_len(R)) {
   x0 <- samp$X
 
   ci_jack <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)$ci
-  cover_bca[r] <- (ci_jack[1] <= theta_true && theta_true <= bca[2])
+  cover_bca[r] <- (ci_jack[1] <= theta_true && theta_true <= ci_jack[2])
 }
 
 mean(cover_bca)
 ```
 
-We can see that the bca coverage 
+We can see that when we use 1000 simulations, the bca CI coverage rate is around 93.1%, pretty close to what we set it to be (95% CI).
