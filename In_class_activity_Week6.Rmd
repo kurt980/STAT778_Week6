@@ -1,0 +1,528 @@
+---
+title: "In_class_activity_Week6"
+output: pdf_document
+date: "2026-02-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# In-class Activity Week 6
+
+```{r}
+library(tidyverse)
+cherry_data <- read_csv("cherry-bloom-early.csv")
+```
+
+## Activity 2
+
+Compute Kendall's Tau between Jan and Feb
+
+```{r}
+ken_tau <- cor(cherry_data$avg_tmax_Jan, cherry_data$avg_tmax_Feb, method = "kendall")
+print(ken_tau)
+```
+
+The estimated Kendall's Tau correlation is 0.317
+
+## Activity 3
+
+Test correlation in 2 by permutation
+
+```{r}
+set.seed(123)
+
+# wrap the thing as a function
+permute_and_kendall <- function(x, y, reps = 1000$ {
+  # catch and throw some errors
+  stopifnot(length(x$ == length(y))
+  stopifnot(is.numeric(x), is.numeric(y))
+  
+  # store permutated correlations
+  perm_taus <- numeric(reps)
+  for $b in seq_len(reps)$ {
+    perm_y <- sample(y, replace = FALSE$  # permute y values by setting replace equal false
+    perm_taus[b] <- cor(x, perm_y, method = "kendall")
+  }
+  return(perm_taus)
+}
+
+# get perm taus
+perm_taus <- permute_and_kendall(cherry_data$avg_tmax_Jan, cherry_data$avg_tmax_Feb)
+```
+
+```{r}
+hist(perm_taus, breaks=20)
+abline(v = ken_tau, lwd = 2)
+
+# compute sampling distribution
+print(mean(ken_tau < abs(perm_taus)))
+```
+
+We can see the empirical p-value is 0, and it is easy to see that no simulated correlation coefficients in the 1000 experiments actually reaches 0.317. We can hereby reject the null hypothesis of no correlation using the permutation test results and conclude that the correlation of 0.317 between January max temperature and February max temperature is significant.
+
+## Activity 4
+
+```{r}
+set.seed(123)
+
+# first create contingency table
+con_tab <- table(cherry_data$early_bloom, cherry_data$location)
+print(con_tab)
+
+# get test results
+pearson_obs <- suppressWarnings(chi$statistic)
+
+reps <- 10000
+pearson_perm <- numeric(reps)
+
+for $b in seq_len(reps)$ {
+  y <- cherry_data$early_bloom
+  # permutate early bloom
+  y_perm <- sample(y)
+  con_tab_b <- table(y_perm, cherry_data$location)
+  
+  # pearson's test
+  pearson <- chisq.test(con_tab_b, correct = FALSE)
+  
+  # store perm results
+  pearson_perm[b] <- suppressWarnings(pearson$statistic)
+}
+
+# permutation empirical p-value $right tail since larger chi-square = more association)
+p_perm_pearson <- mean(pearson_perm >= pearson_obs)
+
+p_perm_pearson
+```
+
+```{r}
+# fisher's exact test
+fish <- fisher.test(con_tab)
+fish
+```
+
+We can see neither Pearson's Chi square test $using permutations$ nor Fisher's exact test $without permutations$ returns significant result. So we cannot reject the null hypothesis that there is no correlation between location and early blossom.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+## Activity 5
+
+```{r}
+# helper function to compute quantity of interst theta hat
+theta_hat <- function(x$ {
+  mu_hat <- mean(x)
+  sd_hat <- sd(x)
+  return(sd_hat / mu_hat)
+}
+
+# helper functio nto generate one sample of X where X = ||Y||_1, Y ~ N(0, I_p)
+generate_X_sample <- function(n = 50, p = 5$ {
+  Y <- matrix(rnorm(n * p), nrow = n, ncol = p)
+  #print(rowSums(abs(Y)))
+  return(list(Y = Y, X = rowSums(abs(Y))))
+}
+```
+
+### 5.1 MC sampling
+
+```{r}
+set.seed(123)
+
+M <- 10000
+n <- 50
+p <- 5
+
+theta_hat_mc <- numeric(M)
+
+for $m in seq_len(M)$ {
+  x <- generate_X_sample(n = n, p = p)$X
+  theta_hat_mc[m] <- theta_hat(x)
+}
+
+mc_mean <- mean(theta_hat_mc)
+mc_var  <- var(theta_hat_mc)
+
+# plot MC theta hat
+hist(theta_hat_mc, breaks = 20)
+
+print(paste0("mean and variance of theta hat in MC: ", mc_mean, "; ",  mc_var))
+```
+
+### 5.2: one bootstrap
+
+```{r}
+set.seed(123)
+
+# generate one sample
+x0 <- generate_X_sample(n = n, p = p)$X
+theta_hat0 <- theta_hat(x0)
+
+# run the bootstrap resampling
+B <- 1000
+theta_hat_boot <- numeric(B)
+for $b in seq_len(B)$ {
+  x_boot <- sample(x0, size = n, replace = TRUE$  # bootstrap by setting replace to true
+  theta_hat_boot[b] <- theta_hat(x_boot)
+}
+
+# plot bootstrap theta hat
+hist(theta_hat_boot, breaks = 20)
+abline(v = theta_hat0, lwd = 2)
+
+boot_mean <- mean(theta_hat_boot)
+boot_var  <- var(theta_hat_boot)
+
+print(paste0("theta_hat for sample: ", theta_hat0))
+
+print(paste0("mean and variance of theta hat in bootstrapping: ", boot_mean, "; ",  boot_var))
+```
+
+Observe: looks like the $theta_hat$ in bootstrapping has a slightly smaller mean and slightly smaller variance than in the MC simulations. This could mean the estimation is biased.
+
+### 5.3: repeat bootstrapping
+
+```{r}
+set.seed(123)
+
+reps <- 1000
+B <- 1000
+
+boot_var_1000 <- numeric(reps)
+
+for $r in seq_len(reps)$ {
+  # generate one sample
+  x0 <- generate_X_sample(n = n, p = p)$X
+  theta_hat0 <- theta_hat(x0)
+  
+  # run the bootstrap resampling
+  B <- 1000
+  theta_hat_boot <- numeric(B)
+  for $b in seq_len(B)$ {
+    x_boot <- sample(x0, size = n, replace = TRUE$  # bootstrap by setting replace to true
+    theta_hat_boot[b] <- theta_hat(x_boot)
+  }
+  
+  # store the variance of bootstrapping estimates
+  boot_var_1000[r] <- var(theta_hat_boot)
+}
+
+# As far as I understand it we should take the mean of these variances?
+mean_boot_var <- mean(boot_var_1000)
+
+print(paste0("mean variance of 1000 repeated bootstrapping: ", mean_boot_var))
+```
+
+We can see that this time the variance is closer to the MC estimate.
+
+## Activity 6
+
+Here we don't resample from the data, instead we estimate an distribution and draw from that distribution, equivalent to sampling from a empirical distribution
+
+```{r}
+# estimate mean and covariance matrix from Y
+set.seed(123)
+
+# we already generated one sample, now we estimate its parameters
+samples <- generate_X_sample(n = n, p = p)
+Y <- samples$Y
+X <- samples$X
+
+mu_hat <- colMeans(Y)
+Sigma_hat <- cov(Y)
+theta_obs <- theta_hat(X)
+
+# bootstrap from the estimated distribution
+B <- 1000
+theta_hat_para <- numeric(B)
+
+library(MASS)
+
+for $b in seq_len(B)$ {
+  # sample from normal
+  Y_star <- mvrnorm(n = n, mu = mu_hat, Sigma = Sigma_hat)
+  x_star <- rowSums(abs(Y_star))
+  theta_hat_para[b] <- theta_hat(x_star)
+}
+
+print(paste0("theta from sample: ", theta_obs))
+print(paste0("estimated mean: ", mean(theta_hat_para)))
+print(paste0("estimated variance: ", var(theta_hat_para)))
+
+hist(theta_hat_para, breaks = 20)
+abline(v = theta_obs, lwd = 2)
+```
+
+## Activity 7
+
+Theoretical value of $\theta$:
+
+Since $Y \sim N_p(0, I)$ and 
+
+$$
+X=|Y|*1=\sum*{j=1}^p |Y_j|.
+$$
+
+Each $Y_j \sim N(0,1))$, so $|Y_j|$ is half-normal and have
+
+$$
+\mathbb{E}|Z|=\sqrt{\frac{2}{\pi}},\qquad \mathrm{Var}(|Z|)=1-\frac{2}{\pi}.
+$$
+
+Then $X$ is a sum of $p$ i.i.d. $|Y|$, so that
+
+$$
+\mu_X=\mathbb{E}[X]=p\sqrt{\frac{2}{\pi}},\qquad
+\sigma_X^2=\mathrm{Var}(X)=p\Big(1-\frac{2}{\pi}\Big).
+$$ 
+
+So the value of interset has a theoretical value:
+
+$$
+\theta=\frac{\sigma_X}{\mu_X}
+= \frac{\sqrt{p(1-2/\pi)}}{p\sqrt{2/\pi}}
+= \frac{\sqrt{\pi/2 - 1}}{\sqrt{p}}.
+$$
+
+For p=5: 
+
+$$
+\theta = \frac{\sqrt{\pi/2 - 1}}{\sqrt{5}} \approx 0.3378746.
+$$
+
+
+### compute bias from different estimates
+
+```{r}
+# 7.1 MC bias estimates
+theta_true <- sqrt(pi/2 - 1) / sqrt(p)
+bias_mc <- mean(theta_hat_mc) - theta_true
+
+# 7.2 non-parametric bootstrap bias estimates
+bias_np  <- mean(theta_hat_boot) - theta_hat0
+
+# 7.3 parametric bootstrap bias estimates
+bias_par <- mean(theta_hat_para) - theta_obs  # ideally theta_obs == theta_hat0
+
+#
+print(paste0("bias from MC: ", bias_mc, "bias from non-parametric bootstrap: ", bias_np, "bias from parametric bootstrap: ", bias_par))
+```
+
+We can see parametric bootstrap has the biggest bias in terms of magnitude, then non-parametric bootstrap, and finally MC has the smallest bias in magnitude.
+
+
+## Activity 8
+
+### 8.1 Just get 1 CI for each
+
+```{r}
+# a function to compute student CI
+studentized_ci_from_t <- function(theta_obs, se_obs, t_stats, alpha = 0.05) {
+  # get the quantile of bootstrap sampling distribution
+  q <- unname(quantile(t_stats, probs = c(alpha/2, 1 - alpha/2)))
+  # return inteval
+  return(c(theta_obs - se_obs * q[2], theta_obs - se_obs * q[1]))
+}
+
+# B2 is the inner loop for calculating 
+compute_all_CIs <- function(n = 50, p = 5, B = 1000, B2 = 200, alpha = 0.05) {
+
+  samp <- generate_X_sample(n, p)
+  Y <- samp$Y
+  x0 <- samp$X
+  theta_obs <- theta_hat(x0)
+  
+  # ----------------------------------------------------------------------------
+  # nonparametric bootstrap
+  theta_hat_boot <- numeric(B)
+  x_boot_list <- vector("list", B)
+  
+  # percentile CI
+  for (b in seq_len(B)) {
+    x_b <- sample(x0, n, replace = TRUE)
+    x_boot_list[[b]] <- x_b
+    theta_hat_boot[b] <- theta_hat(x_b)
+  }
+  ci_np_percentile <- unname(quantile(theta_hat_boot, probs = c(alpha/2, 1 - alpha/2)))
+  
+  # studentized CI
+  se_obs_np <- sd(replicate(B2, theta_hat(sample(x0, n, replace = TRUE))))
+  t_np <- numeric(B)
+  for (b in seq_len(B)) {
+    x_b <- x_boot_list[[b]]
+    # inner loop to compute SE(theta^) (sqrt(V(F^)))
+    se_b <- sd(replicate(B2, theta_hat(sample(x_b, n, replace = TRUE))))
+    t_np[b] <- (theta_hat_boot[b] - theta_obs) / se_b
+  }
+  ci_np_student <- studentized_ci_from_t(theta_obs, se_obs_np, t_np, alpha)
+
+  # ----------------------------------------------------------------------------
+  # parametric bootstrap
+  
+  # estimate distribution
+  mu_hat <- colMeans(Y)
+  Sigma_hat <- cov(Y)
+
+  theta_hat_param <- numeric(B)
+  Y_star_list <- vector("list", B)
+  
+  # percentile CI
+  for (b in seq_len(B)) {
+    Y_b <- mvrnorm(n, mu_hat, Sigma_hat)
+    Y_star_list[[b]] <- Y_b
+    theta_hat_param[b] <- theta_hat(rowSums(abs(Y_b)))
+  }
+
+  ci_par_percentile <- unname(quantile(theta_hat_param, probs = c(alpha/2, 1 - alpha/2)))
+  
+  
+  # studentized CI
+  se_obs_par <- sd(replicate(B2, {
+    Y_j <- mvrnorm(n, mu_hat, Sigma_hat)
+    theta_hat(rowSums(abs(Y_j)))
+  }))
+
+  t_par <- numeric(B)
+  for (b in seq_len(B)) {
+    Y_b <- Y_star_list[[b]]
+    mu_b <- colMeans(Y_b)
+    Sigma_b <- cov(Y_b)
+
+    se_b <- sd(replicate(B2, {
+      Y_bj <- mvrnorm(n, mu_b, Sigma_b)
+      theta_hat(rowSums(abs(Y_bj)))
+    }))
+
+    t_par[b] <- (theta_hat_param[b] - theta_obs) / se_b
+  }
+  ci_par_student <- studentized_ci_from_t(theta_obs, se_obs_par, t_par, alpha)
+
+  list(
+    theta_obs = theta_obs,
+    ci_np_percentile = ci_np_percentile,
+    ci_np_student = ci_np_student,
+    ci_par_percentile = ci_par_percentile,
+    ci_par_student = ci_par_student
+  )
+}
+```
+
+
+```{r}
+alpha <- 0.05
+n <- 50
+p <- 5
+B <- 1000
+B2 <- 200
+
+CIs <- compute_all_CIs(n, p, B, B2, alpha)
+CIs
+
+contains <- function(ci, val) ci[1] <= val && val <= ci[2]
+
+c(
+  np_pct  = contains(CIs$ci_np_percentile, theta_true),
+  np_t    = contains(CIs$ci_np_student, theta_true),
+  par_pct = contains(CIs$ci_par_percentile, theta_true),
+  par_t   = contains(CIs$ci_par_student, theta_true)
+)
+```
+
+We can see the 4 CIs all contain the true value
+
+### 8.2 Repeat CIs 1000 times and check coverage
+
+```{r}
+set.seed(123)
+
+R <- 1000
+cover <- matrix(FALSE, nrow = R, ncol = 4)
+colnames(cover) <- c("nonparametric_percentile", "nonparametric_student", "parametric_percentile", "parametric_student")
+
+for (r in seq_len(R)) {
+  CIs_1000 <- compute_all_CIs(n, p, B, B2, alpha)
+  cover[r, "nonparametric_percentile"]  <- contains(CIs_1000$ci_np_percentile, theta_true)
+  cover[r, "nonparametric_student"]    <- contains(CIs_1000$ci_np_student, theta_true)
+  cover[r, "parametric_percentile"] <- contains(CIs_1000$ci_par_percentile, theta_true)
+  cover[r, "parametric_student"]   <- contains(CIs_1000$ci_par_student, theta_true)
+}
+
+cover
+```
+
+
+## Activity 9
+
+```{r}
+bca_ci_jacknife_after_bootstrap <- function(x0, B = 1000, alpha = 0.05) {
+  n <- length(x0)
+  theta_obs <- theta_hat(x0)
+
+  # store bootstrap thetas
+  theta_star <- numeric(B)
+  counts <- matrix(0L, nrow = B, ncol = n)
+
+  for (b in seq_len(B)) {
+    idx <- sample.int(n, size = n, replace = TRUE)
+    theta_star[b] <- theta_hat(x0[idx])
+
+    counts[b, ] <- tabulate(idx, nbins = n)
+  }
+
+  # z0-----
+  z0 <- qnorm(mean(theta_star < theta_obs))
+
+  # jackknife-after-bootstrap leave-one-out
+  theta_loo_jab <- numeric(n)
+  for (i in seq_len(n)) {
+    keep <- counts[, i] == 0L          # replicates where obs i is not included
+    theta_loo_jab[i] <- mean(theta_star[keep])
+  }
+  theta_bar <- mean(theta_loo_jab)
+
+  # acceleration a
+  num <- sum((theta_bar - theta_loo_jab)^3)
+  den <- 6 * (sum((theta_bar - theta_loo_jab)^2))^(3/2)
+  a <- num / den
+
+  # quantile levels
+  z_low <- qnorm(alpha/2)
+  z_high <- qnorm(1 - alpha/2)
+
+  adj <- function(z) pnorm(z0 + (z0 + z) / (1 - a * (z0 + z)))
+
+  a1 <- adj(z_low)
+  a2 <- adj(z_high)
+
+  # bca ci from bootstrap quantiles -----
+  ci <- unname(quantile(theta_star, probs = c(a1, a2), type = 7))
+
+  list(ci = ci, z0 = z0, a = a, theta_obs = theta_obs)
+}
+```
+
+```{r}
+set.seed(123)
+out <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)
+out$ci
+```
+
+```{r}
+set.seed(123)
+R <- 1000
+theta_true <- sqrt(pi/2 - 1) / sqrt(5)
+
+cover_bca <- logical(R)
+
+for (r in seq_len(R)) {
+  samp <- generate_X_sample(n = 50, p = 5)
+  x0 <- samp$X
+
+  bca <- bca_ci_jacknife_after_bootstrap(x0, B = 1000, alpha = 0.05)$ci
+  cover_bca[r] <- (bca[1] <= theta_true && theta_true <= bca[2])
+}
+
+mean(cover_bca)
+```
+
+We can see that the bca coverage 
