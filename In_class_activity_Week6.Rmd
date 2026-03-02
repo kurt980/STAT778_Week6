@@ -34,15 +34,15 @@ Test correlation in 2 by permutation
 set.seed(123)
 
 # wrap the thing as a function
-permute_and_kendall <- function(x, y, reps = 1000$ {
+permute_and_kendall <- function(x, y, reps = 1000) {
   # catch and throw some errors
-  stopifnot(length(x$ == length(y))
+  stopifnot(length(x) == length(y))
   stopifnot(is.numeric(x), is.numeric(y))
   
   # store permutated correlations
   perm_taus <- numeric(reps)
-  for $b in seq_len(reps)$ {
-    perm_y <- sample(y, replace = FALSE$  # permute y values by setting replace equal false
+  for (b in seq_len(reps)) {
+    perm_y <- sample(y, replace = FALSE)  # permute y values by setting replace equal false
     perm_taus[b] <- cor(x, perm_y, method = "kendall")
   }
   return(perm_taus)
@@ -77,7 +77,7 @@ pearson_obs <- suppressWarnings(chi$statistic)
 reps <- 10000
 pearson_perm <- numeric(reps)
 
-for $b in seq_len(reps)$ {
+for (b in seq_len(reps)) {
   y <- cherry_data$early_bloom
   # permutate early bloom
   y_perm <- sample(y)
@@ -90,7 +90,7 @@ for $b in seq_len(reps)$ {
   pearson_perm[b] <- suppressWarnings(pearson$statistic)
 }
 
-# permutation empirical p-value $right tail since larger chi-square = more association)
+# permutation empirical p-value (right tail since larger chi-square = more association)
 p_perm_pearson <- mean(pearson_perm >= pearson_obs)
 
 p_perm_pearson
@@ -102,7 +102,7 @@ fish <- fisher.test(con_tab)
 fish
 ```
 
-We can see neither Pearson's Chi square test $using permutations$ nor Fisher's exact test $without permutations$ returns significant result. So we cannot reject the null hypothesis that there is no correlation between location and early blossom.
+We can see neither Pearson's Chi square test (using permutations) nor Fisher's exact test (without permutations) returns significant result. So we cannot reject the null hypothesis that there is no correlation between location and early blossom.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -110,14 +110,14 @@ We can see neither Pearson's Chi square test $using permutations$ nor Fisher's e
 
 ```{r}
 # helper function to compute quantity of interst theta hat
-theta_hat <- function(x$ {
+theta_hat <- function(x) {
   mu_hat <- mean(x)
   sd_hat <- sd(x)
   return(sd_hat / mu_hat)
 }
 
 # helper functio nto generate one sample of X where X = ||Y||_1, Y ~ N(0, I_p)
-generate_X_sample <- function(n = 50, p = 5$ {
+generate_X_sample <- function(n = 50, p = 5) {
   Y <- matrix(rnorm(n * p), nrow = n, ncol = p)
   #print(rowSums(abs(Y)))
   return(list(Y = Y, X = rowSums(abs(Y))))
@@ -135,7 +135,7 @@ p <- 5
 
 theta_hat_mc <- numeric(M)
 
-for $m in seq_len(M)$ {
+for (m in seq_len(M)) {
   x <- generate_X_sample(n = n, p = p)$X
   theta_hat_mc[m] <- theta_hat(x)
 }
@@ -161,8 +161,8 @@ theta_hat0 <- theta_hat(x0)
 # run the bootstrap resampling
 B <- 1000
 theta_hat_boot <- numeric(B)
-for $b in seq_len(B)$ {
-  x_boot <- sample(x0, size = n, replace = TRUE$  # bootstrap by setting replace to true
+for (b in seq_len(B)) {
+  x_boot <- sample(x0, size = n, replace = TRUE)  # bootstrap by setting replace to true
   theta_hat_boot[b] <- theta_hat(x_boot)
 }
 
@@ -190,7 +190,7 @@ B <- 1000
 
 boot_var_1000 <- numeric(reps)
 
-for $r in seq_len(reps)$ {
+for (r in seq_len(reps)) {
   # generate one sample
   x0 <- generate_X_sample(n = n, p = p)$X
   theta_hat0 <- theta_hat(x0)
@@ -198,8 +198,8 @@ for $r in seq_len(reps)$ {
   # run the bootstrap resampling
   B <- 1000
   theta_hat_boot <- numeric(B)
-  for $b in seq_len(B)$ {
-    x_boot <- sample(x0, size = n, replace = TRUE$  # bootstrap by setting replace to true
+  for (b in seq_len(B)) {
+    x_boot <- sample(x0, size = n, replace = TRUE)  # bootstrap by setting replace to true
     theta_hat_boot[b] <- theta_hat(x_boot)
   }
   
@@ -238,7 +238,7 @@ theta_hat_para <- numeric(B)
 
 library(MASS)
 
-for $b in seq_len(B)$ {
+for (b in seq_len(B)) {
   # sample from normal
   Y_star <- mvrnorm(n = n, mu = mu_hat, Sigma = Sigma_hat)
   x_star <- rowSums(abs(Y_star))
