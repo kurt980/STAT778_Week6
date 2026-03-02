@@ -72,7 +72,8 @@ con_tab <- table(cherry_data$early_bloom, cherry_data$location)
 print(con_tab)
 
 # get test results
-pearson_obs <- suppressWarnings(chi$statistic)
+pearson <- chisq.test(con_tab, correct = FALSE)
+pearson_obs <- suppressWarnings(pearson$statistic)
 
 reps <- 10000
 pearson_perm <- numeric(reps)
